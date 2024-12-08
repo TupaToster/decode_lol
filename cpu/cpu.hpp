@@ -390,6 +390,7 @@ private:
     /// Some constants that maybe will be used (maybe not)
     static const u_int32_t  kMemSize        = 1<<20; ///<constant for memory size
     static const u_int32_t  kRegCnt         = 32; ///< constant for amount of registers
+    static const Word_t     pcIncr          = 4;
 
     /// Some variables to be used fairly frequently
     Word_t                   pcInit; ///< Basically an initial pc value
@@ -452,11 +453,23 @@ private:
      * @remark later i intend to add a storage unit for the instruction (it may add some convenience and speed up the process a bit)
      */
     int exec (Insn_t insn) {
+
+        Word_t temp = 0;
         switch (insn.opc){
+
+            case Insn_t::OpCode::kEBREAK:
+
+                return 1;
+            break;
 
             case Insn_t::OpCode::kADD:
 
                 setReg (insn.dst, getReg (insn.src1) + getReg (insn.src2));
+            break;
+
+            case Insn_t::OpCode::kADDI:
+
+                setReg (insn.dst, (insn.src1 + insn.imm));
             break;
 
             case Insn_t::OpCode::kSUB:
@@ -464,16 +477,86 @@ private:
                 setReg (insn.dst, getReg (insn.src1) - getReg (insn.src2));
             break;
 
-            case Insn_t::OpCode::kEBREAK:
+            case Insn_t::OpCode::kSUBI:
 
-                return 1;
+                setReg (insn.dst, (insn.src1 - insn.imm));
             break;
+
+            case Insn_t::OpCode::kJAL:
+
+                setReg (insn.dst, pc + pcIncr);
+                pc += insn.imm - pcIncr;
+            break;
+
+            case Insn_t::OpCode::kJALR:
+
+                setReg (insn.dst, pc + pcIncr);
+                pc += getReg (insn.src1) + insn.imm - pcIncr;
+            break;
+
+            case Insn_t::OpCode::kLB:
+
+                temp = mem.getB (getReg (insn.src1) + insn.imm);
+                if (temp & (1 << 7)) temp |= 0xFFFFFF00;
+                setReg (insn.dst, temp);
+            break;
+
+            case Insn_t::OpCode::kLH:
+
+                temp = mem.getHW (getReg (insn.src1) + insn.imm);
+                if (temp & (1 << 15)) temp |= 0xFFFF0000;
+                setReg (insn.dst, temp);
+            break;
+
+            case Insn_t::OpCode::kLW:
+
+                temp = mem.getW (getReg (insn.src1) + insn.imm);
+                setReg (insn.dst, temp);
+            break;
+
+            case Insn_t::OpCode::kLUI:
+
+                setReg (insn.src1, insn.imm);
+            break;
+
+            case Insn_t::OpCode::kAUIPC:
+
+                pc += insn.imm;
+            break;
+
+            case Insn_t::OpCode::kBNE:
+
+                if (getReg (insn.src1) != getReg (insn.src2)) pc += insn.imm - pcIncr;
+            break;
+
+            case Insn_t::OpCode::kBEQ:
+
+                if (getReg (insn.src1) == getReg (insn.src2)) pc += insn.imm - pcIncr;
+            break;
+
+            case Insn_t::OpCode::kSB:
+
+                mem.setB (getReg (insn.src1) + insn.imm, getReg (insn.src2));
+            break;
+
+            case Insn_t::OpCode::kSH:
+
+                mem.setHW (getReg (insn.src1) + insn.imm, getReg (insn.src2));
+            break;
+
+            case Insn_t::OpCode::kSW:
+
+                mem.setW (getReg (insn.src1) + insn.imm, getReg (insn.src2));
+            break;
+
 
             default:
 
                 exit (0); ///< i will add a system of exceptions/error codes later
             break;
         }
+
+        pc += pcIncr;
 
         return 0;
     }
@@ -494,9 +577,9 @@ public:
      */
     void Init (std::vector<Word_t>& initialMem, std::vector<Word_t>& initialReg) {
 
-        for (int i = 0; i < initialMem.size (); i++) {
+        for (int i = 0; i < initialMem.size () * 4; i+=pcIncr) {
 
-            mem.setW (pcInit + i, initialMem[i]);
+            mem.setW (pcInit + i, initialMem[i / pcIncr]);
         }
 
         for (int i = 0; i < initialReg.size (); i++) {
@@ -521,11 +604,11 @@ public:
             dumpFile << "\treg[" << i << "] = " << getReg (i) << '\n';
         }
 
-        dumpFile << "Mem (first 50 starting with pcInit)\n";
+        dumpFile << "Mem (+- 5 starting with from pc)\n";
 
-        for (int i = pcInit; i < pcInit + 50; i++) {
+        for (int i = (pc - 5 * pcIncr >= pcInit ? - 5 * pcIncr : - (pc - pcInit) / pcIncr); i < 5 * pcIncr; i++) {
 
-            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.getW (i)) << "\n";
+            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.getW (pc + i * pcIncr)) << "\n";
         }
 
         dumpFile << "---------------------------------------------------\n";
