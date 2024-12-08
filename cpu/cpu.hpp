@@ -5,43 +5,127 @@
  * @brief A basic memory class (may be expanded further)
  *
  * @tparam T stored value type
+ * @warning IT IS LITTLE ENDIAN
  */
-template<typename T>
 class Memory_t {
 
 private:
 
-    Reg_t               memSize; ///< total memory size in sizeof (T)
+    Word_t               memSize; ///< total memory size in sizeof (T)
 public:
-    std::vector<T>      data; ///< vector to store memory lol
+    std::vector<Byte_t>      data; ///< vector to store memory lol
 
 public:
 
     /**
      * @brief Construct a new Memory_t object
      */
-    Memory_t (Reg_t memSize_) : memSize (memSize_), data (memSize_) {}
+    Memory_t (Word_t memSize_) : memSize (memSize_), data (memSize_) {}
 
     /**
-     * @brief Returns value placed at pos
+     * @brief get byte
      *
-     * @param pos memory address
-     * @return T value placed at this address
+     * @param pos
+     * @return Byte_t
      */
-    T get (Reg_t pos) {
+    Byte_t getB (Word_t pos) {
 
+        if (pos > memSize - 1) return 0;
         return data[pos];
     }
 
     /**
-     * @brief Sets mem cell located at pos with value of val
+     * @brief get half word
      *
-     * @param pos where to set
-     * @param val value to set
+     * @param pos
+     * @return HWord_t
      */
-    void set (Reg_t pos, T val) {
+    HWord_t getHW (Word_t pos) {
 
-        data[pos] = val;
+        if (pos > memSize - 2) return 0; ///< Should be rewritten as an exception
+        return data[pos] + (data[pos + 1] << 8);
+    }
+    /**
+     * @brief get word
+     *
+     * @param pos
+     * @return Word_t
+     */
+    Word_t getW (Word_t pos) {
+
+        if (pos > memSize - 4) return 0;
+        return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24);
+    }
+
+    /**
+     * @brief get double word
+     *
+     * @param pos
+     * @return DWord_t
+     */
+    DWord_t getDW (Word_t pos) {
+
+        if (pos > memSize - 8) return 0;
+        return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24) + (data[pos + 4] << 32) + (data[pos + 5] << 40) + (data[pos + 6] << 48) + (data[pos + 7] << 56);
+    }
+
+    /**
+     * @brief store byte
+     *
+     * @param pos
+     * @param val
+     */
+    void setB (Word_t pos, Byte_t val) {
+
+        if (pos > memSize - 1) return;
+        data[pos] = val & 0xFF;
+    }
+
+    /**
+     * @brief store half word
+     *
+     * @param pos
+     * @param val
+     */
+    void setHW (Word_t pos, HWord_t val) {
+
+        if (pos > memSize - 2) return;
+        data[pos] = val & 0xFF;
+        data[pos + 1] = (val >> 8) & 0xFF;
+    }
+
+    /**
+     * @brief store word
+     *
+     * @param pos
+     * @param val
+     */
+    void setW (Word_t pos, Word_t val) {
+
+        if (pos > memSize - 4) return;
+        data[pos] = val & 0xFF;
+        data[pos + 1] = (val >> 8) & 0xFF;
+        data[pos + 2] = (val >> 16) & 0xFF;
+        data[pos + 3] = (val >> 24) & 0xFF;
+    }
+
+    /**
+     * @brief store double word
+     *
+     * @param pos
+     * @param val
+     */
+    void setDW (Word_t pos, DWord_t val) {
+
+        if (pos > memSize - 8) return;
+        data[pos] = val & 0xFF;
+        data[pos + 1] = (val >> 8) & 0xFF;
+        data[pos + 2] = (val >> 16) & 0xFF;
+        data[pos + 3] = (val >> 24) & 0xFF;
+        data[pos + 4] = (val >> 32) & 0xFF;
+        data[pos + 5] = (val >> 40) & 0xFF;
+        data[pos + 6] = (val >> 48) & 0xFF;
+        data[pos + 7] = (val >> 54) & 0xFF;
     }
 };
 
@@ -77,24 +161,25 @@ private:
             kLH,
             kLW,
             kLUI,
-            kAUIPC
+            kAUIPC,
+            kBNE,
+            kBEQ,
+            kSB,
+            kSH,
+            kSW,
         };
 
         /**
          * @brief enum class for real values of opcode and funct fields of supported instructions
          * @remark yeah the naming is kind of inobvious but it gets the job done
          */
-        enum class OpMask : Reg_t {
+        enum class OpMask : Word_t {
 
             kJAL        = 0b1101111,
             kJALR       = 0b1100111,
-            kBNE        = 0b1100011 | (0b001 << 12),
             kLB         = 0b0000011,
             kLH         = 0b0000011 | (0b001 << 12),
             kLW         = 0b0000011 | (0b010 << 12),
-            kSB         = 0b0100011,
-            kSH         = 0b0100011 | (0b001 << 12),
-            kSW         = 0b0100011 | (0b010 << 12),
             kADDI       = 0b0010011,
             kADD        = 0b0110011,
             kSUBI       = 0b0010011 | (0b010000 << 25),
@@ -102,6 +187,11 @@ private:
             kEBREAK     = 0b1110011 | (0b1 << 20),
             kLUI        = 0b0110111,
             kAUIPC      = 0b0010111,
+            kBNE        = 0b1100011 | (0b001 << 12),
+            kBEQ        = 0b1100011 | (0b000 << 12),
+            kSB          = 0b0100011 | (0b000 << 12),
+            kSH          = 0b0100011 | (0b001 << 12),
+            kSW          = 0b0100011 | (0b010 << 12),
         };
 
         enum class OpOffset : u_int32_t {
@@ -111,7 +201,7 @@ private:
             kRD         = 7
         };
 
-        enum class OpTypeMask : Reg_t {
+        enum class OpTypeMask : Word_t {
 
             kRTYPE      = (0b1111111 << 25) + (0b111 << 12) + 0b111111,
             kISBTYPE    = (1<<15) - (1<<12) + (1<<7) - 1u,
@@ -119,8 +209,10 @@ private:
             kRS1        = (1<<20) - (1<<15),
             kRS2        = (1<<25) - (1<<20),
             kRD         = (1<<12) - (1<<7),
-            kJUIMM       = -(0b111111111111),
+            kJUIMM      = -(0b111111111111),
             kIIMM       = (1 << 20) - (1 << 21),
+            kBIMM1      = (0b11111 << 7),
+            kBIMM2      = (0b1111111 << 25),
         };
 
         /// Some constants that have proved themselves useful
@@ -128,13 +220,16 @@ private:
         unsigned kRS1Off = 15;
         unsigned kRS2Off = 20;
         unsigned kIIMMOff = 20;
+        unsigned kBIMM1Off = 7;
+        unsigned kBIMM2Off = 25;
 
         /// Some variables to be used eventually
-        OpCode  opc; ///< Operation code
-        Byte_t  src1; ///< First source
-        Byte_t  src2; ///< Second source
-        Byte_t  dst; ///< Destination
-        Reg_t   imm; ///< Immidiate value deconstructed from bits and pieces
+        OpCode  opc = OpCode::kUNKNOWN; ///< Operation code
+        Byte_t  src1 = 0; ///< First source
+        Byte_t  src2 = 0; ///< Second source
+        Byte_t  dst = 0; ///< Destination
+        Word_t  imm = 0; ///< Immidiate value
+
 
         /// Some stuff may be added later
 
@@ -150,106 +245,144 @@ private:
          * @param insnBytes_ byted instruction straight from memory
          * @param onlyOpc_ a flag to fill only opcode and not fill src1, 2 and dst (true by default)
          */
-        Insn_t (Reg_t insnBytes_, bool onlyOpc_ = true) {
+        Insn_t (Word_t insnBytes_) {
 
-            switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kRTYPE))) {
+            if (insnBytes_ == ((Word_t) OpMask::kEBREAK)) {
+
+                opc = OpCode::kEBREAK;
+                dst = 0;
+                src1 = 0;
+                src2 = 0;
+                return;
+            }
+
+            switch ((OpMask) (((Word_t) insnBytes_) & ((Word_t) OpTypeMask::kRTYPE))) {
 
                 case OpMask::kADD:
 
                     opc = OpCode::kADD; // J type
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    src2 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS2)) >> kRS2Off;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Word_t) OpTypeMask::kRS2)) >> kRS2Off;
                 return;
 
                 case OpMask::kSUB: // U type
 
                     opc = OpCode::kSUB;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    src2 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS2)) >> kRS2Off;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Word_t) OpTypeMask::kRS2)) >> kRS2Off;
                 return;
+
             }
 
-
-            switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kUJTYPE))) {
+            switch ((OpMask) (((Word_t) insnBytes_) & ((Word_t) OpTypeMask::kUJTYPE))) {
 
                 case OpMask::kJAL:
 
                     opc = OpCode::kJAL;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
-                    imm = ((imm & (1 << 31)) >> 11) | ((imm & (0b1111111111 << 21)) >> 21) | ((imm & (1 << 20)) >> 9) | ((imm & (0b11111111 << 12)));
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kJUIMM));
+                    imm = ((imm & (1 << 31)) >> 11) | ((imm & (0b1111111111 << 21)) >> 20) | ((imm & (1 << 20)) >> 9) | ((imm & (0b11111111 << 12)));
+                    if ((insnBytes_ & (1<<31))) imm = imm | 0xFFF00000;
                 return;
 
                 case OpMask::kLUI: // U type
 
                     opc = OpCode::kLUI;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kJUIMM));
                 return;
 
                 case OpMask::kAUIPC: // U type
 
                     opc = OpCode::kAUIPC;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kJUIMM));
                 return;
             }
 
-            switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kISBTYPE))) {
+            switch ((OpMask) (((Word_t) insnBytes_) & ((Word_t) OpTypeMask::kISBTYPE))) {
 
                 case OpMask::kJALR: //I type
 
                     opc = OpCode::kJALR;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
 
                 case OpMask::kLB: //I type
 
                     opc = OpCode::kLB;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
 
                 case OpMask::kLH: //I type
 
                     opc = OpCode::kLH;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
 
                 case OpMask::kLW: // I type
 
-                    opc = OpCode::kLH;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    opc = OpCode::kLW;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
 
                 case OpMask::kADDI: // I type
 
                     opc = OpCode::kADDI;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
 
                 case OpMask::kSUBI: // I type
 
                     opc = OpCode::kSUBI;
-                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
-                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                    if (insnBytes_ & (1<<31)) imm |= 0xFFFFF000;
                 return;
+
+                case OpMask::kBEQ:
+
+                    opc = OpCode::kBEQ;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Word_t) OpTypeMask::kRS2)) >> kRS2Off;
+                    imm = (insnBytes_ & ((Word_t) OpTypeMask::kBIMM1)) | (insnBytes_ & ((Word_t) OpTypeMask::kBIMM2));
+                    imm = ((imm & (1 << 7)) << 4) | ((imm & (0b11111 << 8)) >> 7) | ((imm & (0b111111 << 25)) >> 20) | ((imm & (1 << 31)) >> 19);
+                    if (insnBytes_ & (1 << 31)) imm |= 0xFFFFF000;
+                return;
+
+                case OpMask::kBNE:
+
+                    opc = OpCode::kBNE;
+                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Word_t) OpTypeMask::kRS2)) >> kRS2Off;
+                    imm = ((imm & (1 << 7)) << 4) | ((imm & (0b11111 << 8)) >> 7) | ((imm & (0b111111 << 25)) >> 20) | ((imm & (1 << 31)) >> 19);
+                    if (insnBytes_ & (1 << 31)) imm |= 0xFFFFF000;
+                return;
+
             }
 
+            opc = OpCode::kUNKNOWN;
+            return;
         }
 
     };
@@ -259,12 +392,12 @@ private:
     static const u_int32_t  kRegCnt         = 32; ///< constant for amount of registers
 
     /// Some variables to be used fairly frequently
-    Reg_t                   pcInit; ///< Basically an initial pc value
-    Reg_t                   pc; ///< Stores current instrucion address in mem
+    Word_t                   pcInit; ///< Basically an initial pc value
+    Word_t                   pc; ///< Stores current instrucion address in mem
 
     /// Some containers (aka classes) to be used somewhat regularly
-    std::vector<Reg_t>      reg; ///< register array
-    Memory_t<Reg_t>        mem; ///< memory class
+    std::vector<Word_t>      reg; ///< register array
+    Memory_t                 mem; ///< memory class
 
     /**
      * @brief get value of a register
@@ -272,7 +405,7 @@ private:
      * @param regNum register number
      * @return Reg_t value in register
      */
-    Reg_t getReg (Byte_t regNum) {
+    Word_t getReg (Byte_t regNum) {
 
         return reg[regNum];
     }
@@ -283,7 +416,7 @@ private:
      * @param regNum register number
      * @param val value to set
      */
-    void setReg (Byte_t regNum, Reg_t val) {
+    void setReg (Byte_t regNum, Word_t val) {
 
         reg[regNum] = val;
     }
@@ -295,9 +428,9 @@ private:
      *
      * @remark Does not advance pc
      */
-    Reg_t fetch () {
+    Word_t fetch () {
 
-        return mem.get (pc);
+        return mem.getW (pc);
     }
 
     /**
@@ -307,9 +440,9 @@ private:
      *
      * @remark This is basically done for future expandability and stuff (also for an easier call)
      */
-    Insn_t decode (Reg_t insn) {
+    Insn_t decode (Word_t insn) {
 
-        return Insn_t (insn, false);
+        return Insn_t (insn);
     }
 
     /**
@@ -351,7 +484,7 @@ public:
      * @brief Construct a new Cpu_t object
      *
      */
-    Cpu_t (Reg_t pcInit_) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {}
+    Cpu_t (Word_t pcInit_) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {}
 
     /**
      * @brief Initializes memory and registers with some values
@@ -359,11 +492,11 @@ public:
      * @param initialMem initial memory values (will be written from pcInit for now)
      * @param initialReg initial register state (will be written from first reg correspondin to element zero of provided vector)
      */
-    void Init (std::vector<Reg_t>& initialMem, std::vector<Reg_t>& initialReg) {
+    void Init (std::vector<Word_t>& initialMem, std::vector<Word_t>& initialReg) {
 
         for (int i = 0; i < initialMem.size (); i++) {
 
-            mem.set (pcInit + i, initialMem[i]);
+            mem.setW (pcInit + i, initialMem[i]);
         }
 
         for (int i = 0; i < initialReg.size (); i++) {
@@ -392,7 +525,7 @@ public:
 
         for (int i = pcInit; i < pcInit + 50; i++) {
 
-            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.get (i)) << "\n";
+            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.getW (i)) << "\n";
         }
 
         dumpFile << "---------------------------------------------------\n";
@@ -407,9 +540,7 @@ public:
         for (;pc < 2;pc++) {
 
             dump ();
-            Reg_t rawInsn = fetch ();
-            Insn_t insn = decode (rawInsn);
-            if (exec (insn) == 1) break;
+            if (exec (Insn_t (fetch ())) == 1) break;
         }
         dump ();
     }
