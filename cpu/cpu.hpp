@@ -12,7 +12,7 @@ class Memory_t {
 private:
 
     Reg_t               memSize; ///< total memory size in sizeof (T)
-
+public:
     std::vector<T>      data; ///< vector to store memory lol
 
 public:
@@ -104,21 +104,34 @@ private:
             kAUIPC      = 0b0010111,
         };
 
+        enum class OpOffset : u_int32_t {
+
+            kRS1        = 15,
+            kRS2        = 20,
+            kRD         = 7
+        };
+
         enum class OpTypeMask : Reg_t {
 
-            kRTYPE      = (1<<32) - (1<<25) + (1<<15) - (1<<12) + (1 << 7) - 1,
-            kISBTYPE    = (1<<15) - (1<<12) + (1<<7) - 1,
-            kUJTYPE     = (1<<7) - 1,
+            kRTYPE      = (0b1111111 << 25) + (0b111 << 12) + 0b111111,
+            kISBTYPE    = (1<<15) - (1<<12) + (1<<7) - 1u,
+            kUJTYPE     = (1<<7) - 1u,
             kRS1        = (1<<20) - (1<<15),
             kRS2        = (1<<25) - (1<<20),
             kRD         = (1<<12) - (1<<7),
 
         };
+
+        /// Some constants that have proved themselves useful
+        unsigned kRDOff = 7;
+        unsigned kRS1Off = 15;
+        unsigned kRS2Off = 20;
+
         /// Some variables to be used eventually
         OpCode  opc; ///< Operation code
-        Reg_t   src1; ///< First source
-        Reg_t   src2; ///< Second source
-        Reg_t   dst; ///< Destination
+        Byte_t   src1; ///< First source
+        Byte_t   src2; ///< Second source
+        Byte_t   dst; ///< Destination
         /// Some stuff may be added later
 
         /**
@@ -135,16 +148,23 @@ private:
          */
         Insn_t (Reg_t insnBytes_, bool opcOnly_ = true) {
 
-
             switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kRTYPE))) {
 
                 case OpMask::kADD:
 
                     opc = OpCode::kADD;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS2)) >> kRS2Off;
+                break;
+
+                case OpMask::kSUB:
+
+                    opc = OpCode::kSUB;
                     dst = insnBytes_ & ((Reg_t) OpTypeMask::kRD);
                     src1 = insnBytes_ & ((Reg_t) OpTypeMask::kRS1);
                     src2 = insnBytes_ & ((Reg_t) OpTypeMask::kRS2);
-                break;
+                    break;
 
                 default:
 
@@ -159,9 +179,8 @@ private:
     };
 
     /// Some constants that maybe will be used (maybe not)
-    static const u_int32_t  kMemSize    = 1<<20; ///<constant for memory size
-    static const u_int32_t  kRegCnt     = 32; ///< constant for amount of registers
-    static const u_int32_t  kMaskOpcode = static_cast<u_int32_t> (((1<<7) - 1) | ((1<<15) - (1<<12)) | ((1<<32) - (1<<25)));
+    static const u_int32_t  kMemSize        = 1<<20; ///<constant for memory size
+    static const u_int32_t  kRegCnt         = 32; ///< constant for amount of registers
 
     /// Some variables to be used fairly frequently
     Reg_t                   pcInit; ///< Basically an initial pc value
@@ -169,7 +188,29 @@ private:
 
     /// Some containers (aka classes) to be used somewhat regularly
     std::vector<Reg_t>      reg; ///< register array
-    Memory_t<Byte_t>        mem; ///< memory class
+    Memory_t<Reg_t>        mem; ///< memory class
+
+    /**
+     * @brief get value of a register
+     *
+     * @param regNum register number
+     * @return Reg_t value in register
+     */
+    Reg_t getReg (Byte_t regNum) {
+
+        return reg[regNum];
+    }
+
+    /**
+     * @brief Set the Reg object
+     *
+     * @param regNum register number
+     * @param val value to set
+     */
+    void setReg (Byte_t regNum, Reg_t val) {
+
+        reg[regNum] = val;
+    }
 
     /**
      * @brief Fetches instruction pointed at by pc
@@ -190,9 +231,42 @@ private:
      *
      * @remark This is basically done for future expandability and stuff (also for an easier call)
      */
-    Insn_t decode () {
+    Insn_t decode (Reg_t insn) {
 
-        return Insn_t (mem.get (pc), false);
+        return Insn_t (insn, false);
+    }
+
+    /**
+     * @brief Basically executes an instruction
+     *
+     * @param insn instruction to be executed
+     * @remark later i intend to add a storage unit for the instruction (it may add some convenience and speed up the process a bit)
+     */
+    int exec (Insn_t insn) {
+        switch (insn.opc){
+
+            case Insn_t::OpCode::kADD:
+
+                setReg (insn.dst, getReg (insn.src1) + getReg (insn.src2));
+            break;
+
+            case Insn_t::OpCode::kSUB:
+
+                setReg (insn.dst, getReg (insn.src1) - getReg (insn.src2));
+            break;
+
+            case Insn_t::OpCode::kEBREAK:
+
+                return 1;
+            break;
+
+            default:
+
+                exit (0); ///< i will add a system of exceptions/error codes later
+            break;
+        }
+
+        return 0;
     }
 
 public:
@@ -204,12 +278,65 @@ public:
     Cpu_t (Reg_t pcInit_) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {}
 
     /**
+     * @brief Initializes memory and registers with some values
+     *
+     * @param initialMem initial memory values (will be written from pcInit for now)
+     * @param initialReg initial register state (will be written from first reg correspondin to element zero of provided vector)
+     */
+    void Init (std::vector<Reg_t>& initialMem, std::vector<Reg_t>& initialReg) {
+
+        for (int i = 0; i < initialMem.size (); i++) {
+
+            mem.set (pcInit + i, initialMem[i]);
+        }
+
+        for (int i = 0; i < initialReg.size (); i++) {
+
+            setReg (i + 1, initialReg[i]);
+        }
+    }
+
+    void dump (const char* dumpFileName = "cpu_dump.log") {
+
+        static int callCnt = 0;
+        callCnt++;
+        if (callCnt == 1) system ("rm cpu_dump.log");
+
+        std::ofstream dumpFile (dumpFileName, std::ios::app);
+
+        dumpFile << "PC : " << pc << "\n";
+        dumpFile << "Registers : \n";
+
+        for (int i = 0; i < 32; i++){
+
+            dumpFile << "\treg[" << i << "] = " << getReg (i) << '\n';
+        }
+
+        dumpFile << "Mem (first 50 starting with pcInit)\n";
+
+        for (int i = pcInit; i < pcInit + 50; i++) {
+
+            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.get (i)) << "\n";
+        }
+
+        dumpFile << "---------------------------------------------------\n";
+    }
+
+    /**
      * @brief Just runs everything starting from pcInit
      *
      */
     void run_stuff () {
 
 
+        for (;pc < 2;pc++) {
+
+            dump ();
+            Reg_t rawInsn = fetch ();
+            Insn_t insn = decode (rawInsn);
+            if (exec (insn) == 1) break;
+        }
+        dump ();
     }
 
 };

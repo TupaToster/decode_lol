@@ -1,0 +1,10 @@
+set(NAME lol_cpu.out)
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+
+add_executable(${NAME} main.cpp)
+
+# target_include_directories(${NAME} PRIVATE ${CMAKE_SOURCE_DIR}/test)
+# target_link_libraries(${NAME} PRIVATE asmjit)
+# target_link_libraries(${NAME} PRIVATE hart)
