@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wall -Wextra -Wl,--dependency-file,CMakeFiles/lol_cpu.out.dir/link.d CMakeFiles/lol_cpu.out.dir/main.cpp.o -o lol_cpu.out

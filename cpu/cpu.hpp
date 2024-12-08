@@ -119,19 +119,23 @@ private:
             kRS1        = (1<<20) - (1<<15),
             kRS2        = (1<<25) - (1<<20),
             kRD         = (1<<12) - (1<<7),
-
+            kJUIMM       = -(0b111111111111),
+            kIIMM       = (1 << 20) - (1 << 21),
         };
 
         /// Some constants that have proved themselves useful
         unsigned kRDOff = 7;
         unsigned kRS1Off = 15;
         unsigned kRS2Off = 20;
+        unsigned kIIMMOff = 20;
 
         /// Some variables to be used eventually
         OpCode  opc; ///< Operation code
-        Byte_t   src1; ///< First source
-        Byte_t   src2; ///< Second source
-        Byte_t   dst; ///< Destination
+        Byte_t  src1; ///< First source
+        Byte_t  src2; ///< Second source
+        Byte_t  dst; ///< Destination
+        Reg_t   imm; ///< Immidiate value deconstructed from bits and pieces
+
         /// Some stuff may be added later
 
         /**
@@ -144,36 +148,108 @@ private:
          * @brief Basically a decoder put here for sole convinience :)
          *
          * @param insnBytes_ byted instruction straight from memory
-         * @param opcOnly_ a flag to fill only opcode and not fill src1, 2 and dst (true by default)
+         * @param onlyOpc_ a flag to fill only opcode and not fill src1, 2 and dst (true by default)
          */
-        Insn_t (Reg_t insnBytes_, bool opcOnly_ = true) {
+        Insn_t (Reg_t insnBytes_, bool onlyOpc_ = true) {
 
             switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kRTYPE))) {
 
                 case OpMask::kADD:
 
-                    opc = OpCode::kADD;
+                    opc = OpCode::kADD; // J type
                     dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
                     src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
                     src2 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS2)) >> kRS2Off;
-                break;
+                return;
 
-                case OpMask::kSUB:
+                case OpMask::kSUB: // U type
 
                     opc = OpCode::kSUB;
-                    dst = insnBytes_ & ((Reg_t) OpTypeMask::kRD);
-                    src1 = insnBytes_ & ((Reg_t) OpTypeMask::kRS1);
-                    src2 = insnBytes_ & ((Reg_t) OpTypeMask::kRS2);
-                    break;
-
-                default:
-
-                    opc = OpCode::kUNKNOWN;
-                    dst = -1;
-                    src1 = -1;
-                    src2 = -1;
-                break;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    src2 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS2)) >> kRS2Off;
+                return;
             }
+
+
+            switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kUJTYPE))) {
+
+                case OpMask::kJAL:
+
+                    opc = OpCode::kJAL;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
+                    imm = ((imm & (1 << 31)) >> 11) | ((imm & (0b1111111111 << 21)) >> 21) | ((imm & (1 << 20)) >> 9) | ((imm & (0b11111111 << 12)));
+                return;
+
+                case OpMask::kLUI: // U type
+
+                    opc = OpCode::kLUI;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
+                return;
+
+                case OpMask::kAUIPC: // U type
+
+                    opc = OpCode::kAUIPC;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kJUIMM));
+                return;
+            }
+
+            switch ((OpMask) (((Reg_t) insnBytes_) & ((Reg_t) OpTypeMask::kISBTYPE))) {
+
+                case OpMask::kJALR: //I type
+
+                    opc = OpCode::kJALR;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+
+                case OpMask::kLB: //I type
+
+                    opc = OpCode::kLB;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+
+                case OpMask::kLH: //I type
+
+                    opc = OpCode::kLH;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+
+                case OpMask::kLW: // I type
+
+                    opc = OpCode::kLH;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+
+                case OpMask::kADDI: // I type
+
+                    opc = OpCode::kADDI;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+
+                case OpMask::kSUBI: // I type
+
+                    opc = OpCode::kSUBI;
+                    dst = (insnBytes_ & ((Reg_t) OpTypeMask::kRD)) >> kRDOff;
+                    src1 = (insnBytes_ & ((Reg_t) OpTypeMask::kRS1)) >> kRS1Off;
+                    imm = (insnBytes_ & ((Reg_t) OpTypeMask::kIIMM)) >> kIIMMOff;
+                return;
+            }
+
         }
 
     };
@@ -327,7 +403,6 @@ public:
      *
      */
     void run_stuff () {
-
 
         for (;pc < 2;pc++) {
 
