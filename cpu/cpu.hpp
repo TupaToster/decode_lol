@@ -242,7 +242,7 @@ private:
         /**
          * @brief Basically a decoder put here for sole convinience :)
          *
-         * @param insnBytes_ byted instruction straight from memory
+         * @param insnBytes_ raw instruction straight from memory
          * @param onlyOpc_ a flag to fill only opcode and not fill src1, 2 and dst (true by default)
          */
         Insn_t (Word_t insnBytes_) {
@@ -577,7 +577,7 @@ public:
      */
     void Init (std::vector<Word_t>& initialMem, std::vector<Word_t>& initialReg) {
 
-        for (int i = 0; i < initialMem.size () * 4; i+=pcIncr) {
+        for (int i = 0; i < initialMem.size () * pcIncr; i+=pcIncr) {
 
             mem.setW (pcInit + i, initialMem[i / pcIncr]);
         }
@@ -590,11 +590,7 @@ public:
 
     void dump (const char* dumpFileName = "cpu_dump.log") {
 
-        static int callCnt = 0;
-        callCnt++;
-        if (callCnt == 1) system ("rm cpu_dump.log");
-
-        std::ofstream dumpFile (dumpFileName, std::ios::app);
+        std::ofstream dumpFile (dumpFileName);
 
         dumpFile << "PC : " << pc << "\n";
         dumpFile << "Registers : \n";
@@ -606,7 +602,7 @@ public:
 
         dumpFile << "Mem (+- 5 starting with from pc)\n";
 
-        for (int i = (pc - 5 * pcIncr >= pcInit ? - 5 * pcIncr : - (pc - pcInit) / pcIncr); i < 5 * pcIncr; i++) {
+        for (int i = (pc - 5 * pcIncr >= pcInit ? - 5 * pcIncr : - (pc - pcInit) / pcIncr); i < 6 * pcIncr; i++) {
 
             dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.getW (pc + i * pcIncr)) << "\n";
         }
@@ -620,7 +616,7 @@ public:
      */
     void run_stuff () {
 
-        for (;pc < 2;pc++) {
+        for (;;pc++) {
 
             dump ();
             if (exec (Insn_t (fetch ())) == 1) break;

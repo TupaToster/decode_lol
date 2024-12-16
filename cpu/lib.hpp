@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <bitset>
+#include <sstream>
 
 #define here std::cout << "here\n"
 
