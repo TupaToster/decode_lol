@@ -31,7 +31,8 @@ public:
     Byte_t getB (Word_t pos) {
 
         if (pos > memSize - 1) return 0;
-        return data[pos];
+        return static_cast<Byte_t> (*(Byte_t*) (data.data () + pos));
+        // return data[pos];
     }
 
     /**
@@ -43,7 +44,8 @@ public:
     HWord_t getHW (Word_t pos) {
 
         if (pos > memSize - 2) return 0; ///< Should be rewritten as an exception
-        return data[pos] + (data[pos + 1] << 8);
+        return static_cast<HWord_t> (*(HWord_t*) (data.data () + pos));
+        // return data[pos] + (data[pos + 1] << 8);
     }
     /**
      * @brief get word
@@ -54,7 +56,9 @@ public:
     Word_t getW (Word_t pos) {
 
         if (pos > memSize - 4) return 0;
-        return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24);
+        // std::cout << "mem[" << pos << "] : " << std::bitset<32> (static_cast<Word_t> (*(Word_t*)(data.data () + pos))) << "\n";
+        return static_cast<Word_t> (*(Word_t*)(data.data () + pos));
+        // return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24);
     }
 
     /**
@@ -66,7 +70,8 @@ public:
     DWord_t getDW (Word_t pos) {
 
         if (pos > memSize - 8) return 0;
-        return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24) + (data[pos + 4] << 32) + (data[pos + 5] << 40) + (data[pos + 6] << 48) + (data[pos + 7] << 56);
+        return static_cast<DWord_t> (*(DWord_t*) (data.data () + pos));
+        // return data[pos] + (data[pos + 1] << 8) + (data[pos + 2] << 16) + (data[pos + 3] << 24) + (data[pos + 4] << 32) + (data[pos + 5] << 40) + (data[pos + 6] << 48) + (data[pos + 7] << 56);
     }
 
     /**
@@ -78,7 +83,8 @@ public:
     void setB (Word_t pos, Byte_t val) {
 
         if (pos > memSize - 1) return;
-        data[pos] = val & 0xFF;
+        (*(Byte_t*) (data.data () + pos)) = val;
+        // data[pos] = val & 0xFF;
     }
 
     /**
@@ -90,8 +96,9 @@ public:
     void setHW (Word_t pos, HWord_t val) {
 
         if (pos > memSize - 2) return;
-        data[pos] = val & 0xFF;
-        data[pos + 1] = (val >> 8) & 0xFF;
+        (*(HWord_t*) (data.data () + pos)) = val;
+        // data[pos] = val & 0xFF;
+        // data[pos + 1] = (val >> 8) & 0xFF;
     }
 
     /**
@@ -103,10 +110,11 @@ public:
     void setW (Word_t pos, Word_t val) {
 
         if (pos > memSize - 4) return;
-        data[pos] = val & 0xFF;
-        data[pos + 1] = (val >> 8) & 0xFF;
-        data[pos + 2] = (val >> 16) & 0xFF;
-        data[pos + 3] = (val >> 24) & 0xFF;
+        (*(Word_t*) (data.data () + pos)) = val;
+        // data[pos] = val & 0xFF;
+        // data[pos + 1] = (val >> 8) & 0xFF;
+        // data[pos + 2] = (val >> 16) & 0xFF;
+        // data[pos + 3] = (val >> 24) & 0xFF;
     }
 
     /**
@@ -118,14 +126,15 @@ public:
     void setDW (Word_t pos, DWord_t val) {
 
         if (pos > memSize - 8) return;
-        data[pos] = val & 0xFF;
-        data[pos + 1] = (val >> 8) & 0xFF;
-        data[pos + 2] = (val >> 16) & 0xFF;
-        data[pos + 3] = (val >> 24) & 0xFF;
-        data[pos + 4] = (val >> 32) & 0xFF;
-        data[pos + 5] = (val >> 40) & 0xFF;
-        data[pos + 6] = (val >> 48) & 0xFF;
-        data[pos + 7] = (val >> 54) & 0xFF;
+        (*(DWord_t*) (data.data () + pos)) = val;
+        // data[pos] = val & 0xFF;
+        // data[pos + 1] = (val >> 8) & 0xFF;
+        // data[pos + 2] = (val >> 16) & 0xFF;
+        // data[pos + 3] = (val >> 24) & 0xFF;
+        // data[pos + 4] = (val >> 32) & 0xFF;
+        // data[pos + 5] = (val >> 40) & 0xFF;
+        // data[pos + 6] = (val >> 48) & 0xFF;
+        // data[pos + 7] = (val >> 54) & 0xFF;
     }
 };
 
@@ -203,16 +212,16 @@ private:
 
         enum class OpTypeMask : Word_t {
 
-            kRTYPE      = (0b1111111 << 25) + (0b111 << 12) + 0b111111,
-            kISBTYPE    = (1<<15) - (1<<12) + (1<<7) - 1u,
-            kUJTYPE     = (1<<7) - 1u,
-            kRS1        = (1<<20) - (1<<15),
-            kRS2        = (1<<25) - (1<<20),
-            kRD         = (1<<12) - (1<<7),
-            kJUIMM      = -(0b111111111111),
-            kIIMM       = (1 << 20) - (1 << 21),
-            kBIMM1      = (0b11111 << 7),
-            kBIMM2      = (0b1111111 << 25),
+            kRTYPE      = static_cast<Word_t>((0b1111111 << 25) + (0b111 << 12) + 0b111111),
+            kISBTYPE    = static_cast<Word_t>((1<<15) - (1<<12) + (1<<7) - 1u),
+            kUJTYPE     = static_cast<Word_t>((1<<7) - 1u),
+            kRS1        = static_cast<Word_t>((1<<20) - (1<<15)),
+            kRS2        = static_cast<Word_t>((1<<25) - (1<<20)),
+            kRD         = static_cast<Word_t>((1<<12) - (1<<7)),
+            kJUIMM      = static_cast<Word_t>(-(0b111111111111)),
+            kIIMM       = static_cast<Word_t>((1 << 20) - (1 << 21)),
+            kBIMM1      = static_cast<Word_t>((0b11111 << 7)),
+            kBIMM2      = static_cast<Word_t>((0b1111111 << 25)),
         };
 
         /// Some constants that have proved themselves useful
@@ -224,6 +233,7 @@ private:
         unsigned kBIMM2Off = 25;
 
         /// Some variables to be used eventually
+        Word_t  rawInsn = 0;
         OpCode  opc = OpCode::kUNKNOWN; ///< Operation code
         Byte_t  src1 = 0; ///< First source
         Byte_t  src2 = 0; ///< Second source
@@ -246,6 +256,10 @@ private:
          * @param onlyOpc_ a flag to fill only opcode and not fill src1, 2 and dst (true by default)
          */
         Insn_t (Word_t insnBytes_) {
+
+            rawInsn = insnBytes_;
+
+            std::cout << "Current insn: " << std::bitset<32> (rawInsn) << '\n';
 
             if (insnBytes_ == ((Word_t) OpMask::kEBREAK)) {
 
@@ -273,7 +287,6 @@ private:
                     src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
                     src2 = (insnBytes_ & ((Word_t) OpTypeMask::kRS2)) >> kRS2Off;
                 return;
-
             }
 
             switch ((OpMask) (((Word_t) insnBytes_) & ((Word_t) OpTypeMask::kUJTYPE))) {
@@ -454,7 +467,7 @@ private:
      */
     int exec (Insn_t insn) {
 
-        Word_t temp = 0;
+        Word_t temp = 0; 
         switch (insn.opc){
 
             case Insn_t::OpCode::kEBREAK:
@@ -510,6 +523,7 @@ private:
 
             case Insn_t::OpCode::kLW:
 
+                here;
                 temp = mem.getW (getReg (insn.src1) + insn.imm);
                 setReg (insn.dst, temp);
             break;
@@ -552,6 +566,7 @@ private:
 
             default:
 
+                std::cout << "defaulted to exit (0)\n";
                 exit (0); ///< i will add a system of exceptions/error codes later
             break;
         }
@@ -567,7 +582,18 @@ public:
      * @brief Construct a new Cpu_t object
      *
      */
-    Cpu_t (Word_t pcInit_) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {}
+    Cpu_t (Word_t pcInit_, const std::vector<Word_t>& bytecode, const std::vector<Word_t>& initReg) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {
+
+        for (int i = 0; i < bytecode.size () * pcIncr; i+=pcIncr) {
+
+            mem.setW (pcInit + i, bytecode[i / pcIncr]);
+        }
+
+        for (int i = 0; i < initReg.size (); i++) {
+
+            setReg (i + 1, initReg[i]);
+        }
+    }
 
     /**
      * @brief Initializes memory and registers with some values
@@ -590,7 +616,7 @@ public:
 
     void dump (const char* dumpFileName = "cpu_dump.log") {
 
-        std::ofstream dumpFile (dumpFileName);
+        std::ofstream dumpFile (dumpFileName, std::ios::app);
 
         dumpFile << "PC : " << pc << "\n";
         dumpFile << "Registers : \n";
@@ -602,9 +628,9 @@ public:
 
         dumpFile << "Mem (+- 5 starting with from pc)\n";
 
-        for (int i = (pc - 5 * pcIncr >= pcInit ? - 5 * pcIncr : - (pc - pcInit) / pcIncr); i < 6 * pcIncr; i++) {
+        for (int i = (pc - 5 * pcIncr >= 0 ? -5 : 0); i < (pc + 5*pcIncr < kMemSize ? 6 : 0);i++) {
 
-            dumpFile << "\tmem[" << i << "] : " <<  std::bitset<32> (mem.getW (pc + i * pcIncr)) << "\n";
+            dumpFile << "\tmem[pc + (" << i << ")] : " <<  std::bitset<32> (mem.getW (pc + i * pcIncr)) << "\n";
         }
 
         dumpFile << "---------------------------------------------------\n";
@@ -616,7 +642,8 @@ public:
      */
     void run_stuff () {
 
-        for (;;pc++) {
+        pc = pcInit;
+        for (;;) {
 
             dump ();
             if (exec (Insn_t (fetch ())) == 1) break;

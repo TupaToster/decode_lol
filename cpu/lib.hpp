@@ -8,9 +8,9 @@
 
 #define here std::cout << "here\n"
 
-typedef int8_t  Byte_t;
-typedef int16_t HWord_t;
-typedef int32_t Word_t;
-typedef int64_t DWord_t;
+typedef u_int8_t  Byte_t;
+typedef u_int16_t HWord_t;
+typedef u_int32_t Word_t;
+typedef u_int64_t DWord_t;
 
 
