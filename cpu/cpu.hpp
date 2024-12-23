@@ -213,7 +213,7 @@ private:
             kRS1        = static_cast<Word_t>((1<<20) - (1<<15)),
             kRS2        = static_cast<Word_t>((1<<25) - (1<<20)),
             kRD         = static_cast<Word_t>((1<<12) - (1<<7)),
-            kJUIMM      = static_cast<Word_t>(-(0b111111111111)),
+            kJUIMM      = static_cast<Word_t>(0xFFFFF000),
             kIIMM       = static_cast<Word_t>((1 << 20) - (1 << 21)),
             kSBIMM1     = static_cast<Word_t>((0b11111 << 7)),
             kSBIMM2     = static_cast<Word_t>((0b1111111 << 25)),
@@ -305,7 +305,6 @@ private:
 
                     opc = OpCode::kAUIPC;
                     dst = (insnBytes_ & ((Word_t) OpTypeMask::kRD)) >> kRDOff;
-                    src1 = (insnBytes_ & ((Word_t) OpTypeMask::kRS1)) >> kRS1Off;
                     imm = (insnBytes_ & ((Word_t) OpTypeMask::kJUIMM));
                 return;
             }
@@ -422,7 +421,7 @@ private:
     };
 
     /// Some constants that maybe will be used (maybe not)
-    static const u_int32_t  kMemSize        = 1<<20; ///<constant for memory size
+    static const u_int32_t  kMemSize        = 1<<31; ///<constant for memory size
     static const u_int32_t  kRegCnt         = 32; ///< constant for amount of registers
     static const Word_t     pcIncr          = 4;
 
@@ -555,7 +554,7 @@ private:
 
             case Insn_t::OpCode::kAUIPC:
 
-                pc += insn.imm;
+                setReg (insn.dst, pc + insn.imm);
             break;
 
             case Insn_t::OpCode::kBNE:
@@ -602,11 +601,14 @@ public:
      * @brief Construct a new Cpu_t object
      *
      */
-    Cpu_t (Word_t pcInit_, const std::vector<Word_t>& bytecode, const std::vector<Word_t>& initReg) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {
+    Cpu_t (Word_t pcInit_, const std::vector< std::pair <Word_t, std::vector<Byte_t>>>& bytecode, const std::vector<Word_t>& initReg) : reg (kRegCnt, 0), mem (kMemSize), pcInit (pcInit_) {
 
-        for (int i = 0; i < bytecode.size () * pcIncr; i+=pcIncr) {
+        for (auto seg : bytecode) {
 
-            mem.setW (pcInit + i, bytecode[i / pcIncr]);
+            for (int i = 0; i < seg.second.size (); i++) {
+
+                mem.setB (i + seg.first , seg.second[i]);
+            }
         }
 
         for (int i = 0; i < initReg.size (); i++) {
@@ -676,7 +678,7 @@ public:
     void run_stuff () {
 
         pc = pcInit;
-        for (int i = 0;i < 20;i++) {
+        for (int i = 0;i < (1<<30);i++) {
 
             dump ();
             if (exec (Insn_t (fetch ())) == 1) break;
